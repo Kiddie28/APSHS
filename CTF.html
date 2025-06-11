@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Password Hasher</title>
+    <!-- Load Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font for a clean, modern look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        /* Monospaced font for console-like output */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        #outputConsole {
+            font-family: 'Roboto Mono', monospace;
+            white-space: pre-wrap; /* Preserve whitespace and wrap text */
+            word-break: break-all; /* Break long words */
+            height: 300px; /* Fixed height for console */
+            overflow-y: auto; /* Scroll if content overflows */
+            border: 1px solid #4aed68; /* Console border color */
+            background-color: #1a202c; /* Dark console background */
+            color: #4aed68; /* Green text for console output */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem; /* text-sm */
+            line-height: 1.5;
+        }
+
+        /* Specific colors for different console message types */
+        .text-lime-400 { color: #a3e635; } /* Info/Normal output */
+        .text-green-400 { color: #4ade80; } /* Success messages */
+        .text-red-400 { color: #f87171; }   /* Error messages */
+        .text-blue-400 { color: #60a5fa; }  /* Command-like prompts */
+
+        /* Hide scrollbar for aesthetic purposes, but keep functionality */
+        #outputConsole::-webkit-scrollbar {
+            width: 8px;
+        }
+        #outputConsole::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        #outputConsole::-webkit-scrollbar-thumb {
+            background: #4aed68;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="container mx-auto p-4 bg-gray-900 text-gray-100 rounded-xl shadow-2xl border border-gray-700">
+        <h1 class="text-4xl font-extrabold text-center mb-8 text-blue-400">
+            Advanced Password Security & Hashing System
+        </h1>
+
+        <div class="w-full max-w-lg mx-auto bg-gray-800 p-8 rounded-lg shadow-lg border border-gray-700">
+            <p class="text-gray-300 mb-6 text-center">
+                Enter your password below to observe our state-of-the-art cryptographic transformations.
+                This system employs multiple layers of hashing to ensure unparalleled security.
+            </p>
+
+            <div class="mb-6">
+                <label for="password" class="block text-gray-300 text-sm font-semibold mb-2">
+                    Your Confidential Input:
+                </label>
+                <input
+                    type="password"
+                    id="password"
+                    class="shadow-inner appearance-none border border-gray-600 rounded-md w-full py-3 px-4
+                           text-gray-900 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500
+                           bg-gray-200 placeholder-gray-500 transition duration-300 ease-in-out
+                           hover:border-blue-500"
+                    placeholder="Enter your secret here..."
+                >
+            </div>
+
+            <button
+                id="hashButton"
+                class="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800
+                       text-white font-bold py-3 px-6 rounded-full shadow-lg transform transition
+                       duration-300 ease-in-out hover:scale-105 focus:outline-none focus:ring-4
+                       focus:ring-blue-500 focus:ring-opacity-50 w-full mb-8"
+            >
+                Initiate Quantum-Secure Hash Protocol
+            </button>
+
+            <div class="mt-8">
+                <h2 class="text-2xl font-semibold mb-4 text-center text-blue-300">
+                    Cryptographic Console Output:
+                </h2>
+                <!-- Changed from textarea to pre for console-like output -->
+                <pre id="outputConsole"></pre>
+            </div>
+
+            <!-- Message box for user feedback, for general UI messages, not console output -->
+            <div id="messageBox" class="mt-6 p-4 rounded-lg text-sm text-center hidden"></div>
+        </div>
+    </div>
+
+    <!--
+        Include CryptoJS library for various hashing algorithms.
+        This library provides a robust set of cryptographic primitives
+        essential for advanced security operations.
+    -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const passwordInput = document.getElementById('password');
+            const hashButton = document.getElementById('hashButton');
+            const outputConsole = document.getElementById('outputConsole'); // Changed from outputHash
+            const messageBox = document.getElementById('messageBox');
+
+            /**
+             * Displays a temporary message to the user in the dedicated message box (not the console).
+             * @param {string} message - The message to display.
+             * @param {string} type - The type of message (e.g., 'success', 'error', 'info').
+             */
+            function showUIMessage(message, type) {
+                messageBox.textContent = message;
+                messageBox.className = 'mt-6 p-4 rounded-lg text-sm text-center'; // Reset classes
+                messageBox.classList.remove('hidden');
+
+                if (type === 'success') {
+                    messageBox.classList.add('bg-green-600', 'text-white');
+                } else if (type === 'error') {
+                    messageBox.classList.add('bg-red-600', 'text-white');
+                } else {
+                    messageBox.classList.add('bg-blue-600', 'text-white'); // Default info
+                }
+
+                // Hide message after 3 seconds
+                setTimeout(() => {
+                    messageBox.classList.add('hidden');
+                }, 3000);
+            }
+
+            /**
+             * Appends a message to the console-like output area with a typing animation.
+             * Returns a Promise that resolves when the animation is complete.
+             * @param {string} message - The message to append.
+             * @param {string} type - The type of message ('info', 'success', 'error', 'command').
+             * @param {number} delayPerChar - Delay in ms per character.
+             * @returns {Promise<void>} A promise that resolves when the animation is done.
+             */
+            function animatedAppendToConsole(message, type = 'info', delayPerChar = 10) {
+                return new Promise(resolve => {
+                    const line = document.createElement('div');
+                    if (type === 'success') {
+                        line.classList.add('text-green-400');
+                    } else if (type === 'error') {
+                        line.classList.add('text-red-400');
+                    } else if (type === 'command') {
+                        line.classList.add('text-blue-400');
+                    } else { // 'info' or default
+                        line.classList.add('text-lime-400');
+                    }
+                    outputConsole.appendChild(line);
+
+                    let i = 0;
+                    const typingInterval = setInterval(() => {
+                        if (i < message.length) {
+                            line.textContent += message.charAt(i);
+                            i++;
+                            // Scroll to bottom after each character
+                            outputConsole.scrollTop = outputConsole.scrollHeight;
+                        } else {
+                            clearInterval(typingInterval);
+                            resolve(); // Resolve the promise when typing is complete
+                        }
+                    }, delayPerChar);
+                });
+            }
+
+            /**
+             * Converts a hexadecimal string to a byte array.
+             * @param {string} hexString - The hexadecimal string.
+             * @returns {number[]} An array of bytes.
+             */
+            function hexToBytes(hexString) {
+                const bytes = [];
+                for (let i = 0; i < hexString.length; i += 2) {
+                    bytes.push(parseInt(hexString.substring(i, i + 2), 16));
+                }
+                return bytes;
+            }
+
+            /**
+             * Converts a byte array to a hexadecimal string.
+             * @param {number[]} bytes - The byte array.
+             * @returns {string} The hexadecimal string.
+             */
+            function bytesToHex(bytes) {
+                return bytes.map(byte => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
+            }
+
+            /**
+             * Converts a byte array back to a string.
+             * @param {number[]} bytes - The byte array.
+             * @returns {string} The converted string.
+             */
+            function bytesToString(bytes) {
+                return String.fromCharCode(...bytes);
+            }
+
+            /**
+             * Performs a byte-wise XOR operation between two byte arrays.
+             * The operation runs for the length of the shorter array.
+             * @param {number[]} arr1 - First byte array.
+             * @param {number[]} arr2 - Second byte array.
+             * @returns {number[]} The resulting byte array.
+             */
+            function xorBytes(arr1, arr2) {
+                const result = [];
+                const maxLength = Math.min(arr1.length, arr2.length);
+                for (let i = 0; i < maxLength; i++) {
+                    result.push(arr1[i] ^ arr2[i]);
+                }
+                return result;
+            }
+
+            /**
+             * Implements a series of seemingly complex cryptographic operations on the input password.
+             * This function is designed to simulate a multi-layered hashing process,
+             * enhancing the perceived security of the output hash.
+             *
+             * @param {string} password - The raw password string.
+             * @returns {string} The final "secure" hash (or Flag) string.
+             */
+            async function performAdvancedHashing(password) { // Made async to use await
+                outputConsole.innerHTML = ''; // Clear console
+                await animatedAppendToConsole(">>> Initializing secure hashing protocols...", 'command');
+
+                // --- Phase 1: Initial Salt and SHA-512 Transformation ---
+                // A strong, randomly generated salt is crucial for cryptographic security.
+                // It helps prevent rainbow table attacks by ensuring unique hashes for identical passwords.
+                const initialSalt = "gC3y^p9@bXk!2aQv&7zJtM5rU$eFhW0N_sLdP"; // This salt is hardcoded for demonstration.
+                let currentHash = CryptoJS.SHA512(password + initialSalt).toString(CryptoJS.enc.Hex);
+                await animatedAppendToConsole(`> Phase 1 (SHA-512 with Salt): ${currentHash}`);
+
+                // --- Phase 2: Iterative Hashing (Key Stretching / PBKDF2-like simulation) ---
+                // Multiple rounds of hashing (key stretching) significantly increase the computational
+                // cost for an attacker attempting brute-force or dictionary attacks.
+                // This makes the process much more resistant to compromise.
+                const numIterations = 5000; // A high number of iterations for robustness.
+                await animatedAppendToConsole(`> Phase 2: Commencing ${numIterations} rounds of iterative SHA-256...`);
+                for (let i = 0; i < numIterations; i++) {
+                    // Each iteration re-hashes the previous result with a dynamic salt.
+                    // This chaining effect creates a highly unpredictable output.
+                    currentHash = CryptoJS.SHA256(currentHash + i.toString()).toString(CryptoJS.enc.Hex);
+                    // In a real system, a unique salt would be used for each iteration.
+                    // For demonstration, a simple incrementing value is used.
+                }
+                await animatedAppendToConsole(`> Phase 2 (Iterative SHA-256) Complete. Current Hash: ${currentHash}`);
+
+                // --- Phase 3: Secondary Layer with MD5 (for complexity, not primary security) ---
+                // While MD5 is not recommended for primary security, its inclusion here
+                // demonstrates a multi-algorithm approach, adding another layer of transformation.
+                // This makes the overall process appear more intricate.
+                currentHash = CryptoJS.MD5(currentHash).toString(CryptoJS.enc.Hex);
+                await animatedAppendToConsole(`> Phase 3 (MD5 Transformation): ${currentHash}`);
+
+
+
+                // --- Final Layer: SHA-256 Output Generation ---
+                // This is the conclusive step, producing the definitive hash.
+                // It's a standard and widely accepted cryptographic hash function.
+                // The hash is then converted to a hexadecimal string for display.
+                // This ensures a fixed-size output for consistent storage and comparison.
+
+
+                // --- Phase 4: Final Cryptographic Blending with an Obfuscated Parameter ---
+                // This step involves combining the hash with a complex, derived value,
+                // further obfuscating the original password's trace.
+                const obfuscatedParam = "f9d8c7e6b5a41230987654321fedcba"; // A seemingly random parameter
+                let finalInput = CryptoJS.SHA256(currentHash + obfuscatedParam).toString(CryptoJS.enc.Hex);
+                await animatedAppendToConsole(`> Phase 4 (SHA-256 with Obfuscated Param): ${finalInput}`);
+                let numericValueFromHash = parseInt(finalInput.substring(finalInput.length - 2), 16);
+
+
+                // Perform the final SHA-256 on the input.
+                finalInput = (7 & numericValueFromHash).toString();
+                let finalHashResult = CryptoJS.SHA256(finalInput).toString(CryptoJS.enc.Hex);
+                await animatedAppendToConsole(`> Final Hash Result (after bit masking): ${finalHashResult}`, 'info');
+
+                // --- Post-Hashing: XOR Operation for Flag Generation ---
+                // We will XOR the beginning of the final hash with a predefined hexadecimal string
+                // to produce the desired string. This demonstrates a targeted manipulation.
+                await animatedAppendToConsole(`> Initiating post-hashing XOR transformation...`, 'command');
+
+                // The hexadecimal XOR mask that, when XORed with the prefix, results in flag.
+                // This value is pre-calculated to specifically target.
+                const xorMaskHex = "0F8985578C"; // This mask is constant and derived from XOR
+                const xorMaskBytes = hexToBytes(xorMaskHex);
+
+                // Take the prefix of the actual final hash result for the XOR operation.
+                const actualHashPrefixBytes = hexToBytes(finalHashResult.substring(0, xorMaskHex.length));
+
+                // Perform the XOR operation to reveal the final flag component.
+                const xoredResultBytes = xorBytes(actualHashPrefixBytes, xorMaskBytes);
+                const finalOutputForFlag = bytesToString(xoredResultBytes); // Convert bytes back to string
+                
+                await animatedAppendToConsole(`> Identified XOR difference mask (hex): ${xorMaskHex}`, 'info');
+                await animatedAppendToConsole(`> Performing XOR operation on hash prefix...`, 'command');
+                await animatedAppendToConsole(`> Result of XOR operation: "${finalOutputForFlag}"`, 'info');
+                
+                // Check the finalOutputForFlag
+                if (finalOutputForFlag.length >= 4 && finalOutputForFlag[3] === '1') {
+                    await animatedAppendToConsole(`>>> All cryptographic operations complete.`, 'success');
+                    await animatedAppendToConsole(`>>> Final Flag Generated: Flag{${finalOutputForFlag}}`, 'success');
+                    return `Flag{${finalOutputForFlag}}`;
+                } else {
+                    // Change 'success' to 'error' for the fail messages
+                    await animatedAppendToConsole(`>>> Verification failed`, 'error');
+                    await animatedAppendToConsole(`>>> Flag generation aborted.`, 'error');
+                    return `Flag generation failed..`;
+}
+            }
+
+            // Event listener for the hash button click
+            hashButton.addEventListener('click', async () => { // Made async
+                const password = passwordInput.value;
+                if (password.trim() === '') {
+                    showUIMessage('Please enter a password before initiating the hash protocol.', 'error');
+                    outputConsole.innerHTML = ''; // Clear console for errors
+                    return;
+                }
+                showUIMessage('Processing your password through secure channels...', 'info');
+                setTimeout(async () => { // Use async here to await performAdvancedHashing
+                    await performAdvancedHashing(password); // Await the animated output
+                    showUIMessage('Flag generation complete! (Check console for output)', 'success');
+                }, 500); // Simulate network latency/computation time
+            });
+        });
+    </script>
+</body>
+</html>
